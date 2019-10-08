@@ -4,6 +4,8 @@ use itertools::iproduct;
 use std::time::Instant;
 use rayon::prelude::*;
 
+const NUM_THREADS: usize = 32;
+
 fn do_it(kernel_shape: (usize, usize), img_shape: (usize, usize)) -> f32 {
 
     let kernel = Array::from_elem(kernel_shape, 1.5f32);
@@ -44,6 +46,8 @@ fn do_it(kernel_shape: (usize, usize), img_shape: (usize, usize)) -> f32 {
 }
 
 fn main() {
+    rayon::ThreadPoolBuilder::new().num_threads(NUM_THREADS).build_global().unwrap();
+
     let kernels = vec![(3,3), (5,5), (9,9), (11,11), (13,13), (15,15)];
     let imgs = vec![(1024,768), (2048,2048), (8192,8192), (4194304,768), (16777216,768)];
 
