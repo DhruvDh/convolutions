@@ -4,7 +4,7 @@ use itertools::iproduct;
 use std::time::Instant;
 use rayon::prelude::*;
 
-const NUM_THREADS: usize = 32;
+const NUM_THREADS: usize = 16;
 
 fn do_it(kernel_shape: (usize, usize), img_shape: (usize, usize)) -> f32 {
 
