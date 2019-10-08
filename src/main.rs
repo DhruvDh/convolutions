@@ -1,87 +1,53 @@
-use paste::{item};
+use ndarray::prelude::*;
+use ndarray::Zip;
 use itertools::iproduct;
+use std::time::Instant;
+use rayon::prelude::*;
 
-macro_rules! create_convolution_type {
-    ($($x: expr),+) => {
-        $(
-            item! { type [<Conv $x>] = [[f32; $x]; $x]; }
+fn do_it(kernel_shape: (usize, usize), img_shape: (usize, usize)) -> f32 {
 
-            item! {
-                fn [<new_ conv $x>]() -> [<Conv $x>] {
-                    [[1.32f32; $x]; $x]
-                }
-            }
-        )+
-    };
+    let kernel = Array::from_elem(kernel_shape, 1.5f32);
+    let img = Array::from_elem(img_shape, 1.32f32);
+
+    let kernel_offset = kernel_shape.0 / 2;
+
+    let x_range = kernel_offset..(img.shape()[0] - kernel_offset);
+    let y_range = kernel_offset..(img.shape()[1] - kernel_offset);
+
+    let coords: Vec<(usize, usize)> = iproduct!(x_range, y_range).collect();
+
+    let mut output: Vec<f32> = Vec::new();
+
+    let now = Instant::now();
+    
+    output.par_extend(coords.par_iter().map(|(x, y)| {
+        Zip::from(img.slice( s![
+            (x - kernel_offset)..=(x + kernel_offset),
+            (y - kernel_offset)..=(y + kernel_offset)
+            ] )).and(&kernel)
+                .fold(0f32, |acc, i, k| acc + (i * k))
+
+    }));
+
+    let output = Array::from_shape_vec(
+        (img.shape()[0] - (kernel_offset * 2), img.shape()[1] - (kernel_offset * 2)),
+         output
+    ).unwrap();
+
+    let time_taken = now.elapsed().as_secs_f32();
+
+    dbg!(&output.sum());
+
+    let pixels  = output.shape()[0] * output.shape()[1];
+    
+    (pixels as f32 * 10e-9) / time_taken
 }
-
-macro_rules! create_output_type {
-    ($I: expr, $X: expr, $Y: expr, [$($O: expr),+]) => {
-        $(
-            item! { type [<Out $I x $O>] = [[f32; $X - $O + 1]; $Y - $O + 1]; }
-
-            item! {
-                fn [<new_ out $I x $O>]() -> [<Out $I x $O>] {
-                    [[0f32; $X - $O + 1]; $Y - $O + 1]
-                }
-            }
-        )+
-    };
-}
-
-macro_rules! create_image_type {
-    ($index: expr,$x: expr, $y: expr) => {
-        item! { type [<Img $index>] = [[f32; $x]; $y]; }
-
-        item! {
-            fn [<new_ img $index>]() -> [<Img $index>] {
-                [[2.5f32; $x]; $y]
-            }
-        }
-
-        create_output_type!($index, $x, $y, [3, 5, 7, 9, 11, 13, 15]);
-    };
-}
-
-create_convolution_type!(3, 5, 7, 9, 11, 13, 15);
-create_image_type!(1, 1024, 768);
-create_image_type!(2, 2048, 2048);
-create_image_type!(3, 8192, 8192);
-create_image_type!(4, 4194304, 768);
-create_image_type!(5, 16777216, 768);
 
 fn main() {
-    let img = new_img1();
-    let kernel = new_conv9();
+    let kernels = vec![(3,3), (5,5), (9,9), (11,11), (13,13), (15,15)];
+    let imgs = vec![(1024,768), (2048,2048), (8192,8192), (4194304,768), (16777216,768)];
 
-    let mut out = new_out1x9();
-
-    let coords = iproduct!(0..out.len(), 0..out[0].len()); 
-
-    let img_patches = iproduct!(0..out.len(), 0..out[0].len()).map(|(row_i, col_j)| {
-        img[row_i..row_i+9].iter().map(move |s| &s[col_j..col_j+9]).flatten()
-    });
-
-    for patch in img_patches {
-        // for i in patch {
-        //     println!("{:?}", i);
-        // }
-        println!("{:?}", patch.count());
-        break;
+    for (i, k) in iproduct!(imgs, kernels) {
+        println!("{}x{}\tconvolution of\t{}x{}\t image proccessed at\t{} gigapixels/sec.", k.0, k.1, i.0, i.1, do_it(k, i));
     }
-
-
-    // coords.par_bridge().for_each(|(row_i, col_j)| {
-    //     let img_patch = img[row_i..row_i+9].iter().map(|s| &s[col_j..col_j+9]);
-
-    //     out[row_i][col_j] = img_patch.enumerate()
-    //                             .map(|(row_x, val_x)| {
-    //                                 val_x.iter().enumerate().map(move |(col_y, val_y)| {
-    //                                     kernel[row_x][col_y] * val_y
-    //                                 })
-    //                             }).flatten()
-    //                               .sum();
-            
-    //         dbg!(&out[row_i][col_j]);
-    // });
 }

@@ -10,7 +10,6 @@ def perf(k, n, m):
     return pixels_per_second * 10e-9
 
 import matplotlib.pyplot as plt
-import pandas as pd
 
 kernels = [3, 5, 7, 9, 11, 13, 15]
 
