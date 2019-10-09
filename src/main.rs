@@ -4,7 +4,7 @@ use itertools::iproduct;
 use std::time::Instant;
 use rayon::prelude::*;
 
-const NUM_THREADS: usize = 16;
+const NUM_THREADS: usize = 8;
 
 fn do_it(kernel_shape: (usize, usize), img_shape: (usize, usize)) -> f32 {
 
@@ -22,14 +22,23 @@ fn do_it(kernel_shape: (usize, usize), img_shape: (usize, usize)) -> f32 {
 
     let now = Instant::now();
     
-    output.par_extend(coords.par_iter().map(|(x, y)| {
+    output.par_extend(coords.into_par_iter().map(|(x, y)| {
         Zip::from(img.slice( s![
             (x - kernel_offset)..=(x + kernel_offset),
             (y - kernel_offset)..=(y + kernel_offset)
             ] )).and(&kernel)
                 .fold(0f32, |acc, i, k| acc + (i * k))
-
     }));
+
+    // x_range.into_par_iter().for_each(|x| {
+    //     output.par_extend(y_range.clone().into_par_iter().map(|y| {
+    //         Zip::from(img.slice( s![
+    //             (x - kernel_offset)..=(x + kernel_offset),
+    //             (y - kernel_offset)..=(y + kernel_offset)
+    //             ] )).and(&kernel)
+    //                 .fold(0f32, |acc, i, k| acc + (i * k))
+    //     }))
+    // });
 
     let output = Array::from_shape_vec(
         (img.shape()[0] - (kernel_offset * 2), img.shape()[1] - (kernel_offset * 2)),
@@ -38,7 +47,7 @@ fn do_it(kernel_shape: (usize, usize), img_shape: (usize, usize)) -> f32 {
 
     let time_taken = now.elapsed().as_secs_f32();
 
-    dbg!(&output.sum());
+    // dbg!(&output.sum());
 
     let pixels  = output.shape()[0] * output.shape()[1];
     

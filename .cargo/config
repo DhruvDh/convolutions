@@ -4,4 +4,6 @@ target = "x86_64-unknown-linux-musl"         # build for the target triple (igno
 rustflags = [
     "-C",
     "target-cpu=broadwell",
+#    "-Clink-dead-code"
+#    "-Clinker-plugin-lto"
 ]  # custom flags to pass to all compiler invocations
